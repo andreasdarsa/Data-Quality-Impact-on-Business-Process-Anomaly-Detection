@@ -1,7 +1,7 @@
 from detectors.lof_detector import LOFDetector
 from detectors.isolation_forest import IsolationForestDetector
 from detectors.clustering_detector import DBSCANDetector
-from detectors.evaluation.metrics import evaluate
+from detectors.evaluation.metrics import evaluate, evaluate_per_subtype
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -21,11 +21,11 @@ draw_dfg(dfg)
 
 # Step 3: Features
 features_df = extract_case_features(df, dfg)
-X, y = encode_case_features(features_df)
+X, y, subtypes = encode_case_features(features_df)
 
 # Split
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+X_train, X_test, y_train, y_test, sub_train, sub_test = train_test_split(
+    X, y, subtypes, test_size=0.2, random_state=42, stratify=y
 )
 
 # Scaling
@@ -109,6 +109,15 @@ print(f"Best DBSCAN eps: {dbscan_best[0]}, F1: {dbscan_best_f1:.2f}")
 # =========================
 # 📊 FINAL EVALUATION
 # =========================
-evaluate(y_test, lof_best[2], name="LOF (Score-based)")
-evaluate(y_test, iso_best[2], name="Isolation Forest (Score-based)")
-evaluate(y, dbscan_best[1], name="DBSCAN (Transductive)")
+evaluate(y_test, lof_best[2], name="LOF")
+evaluate(y_test, iso_best[2], name="Isolation Forest")
+evaluate(y, dbscan_best[1], name="DBSCAN")
+
+y_test = y_test.reset_index(drop=True)
+y = y.reset_index(drop=True)
+sub_test = sub_test.reset_index(drop=True)
+subtypes = subtypes.reset_index(drop=True)
+
+evaluate_per_subtype(y_test, lof_best[2], sub_test, name="LOF")
+evaluate_per_subtype(y_test, iso_best[2], sub_test, name="Isolation Forest")
+evaluate_per_subtype(y, dbscan_best[1], subtypes, name="DBSCAN")

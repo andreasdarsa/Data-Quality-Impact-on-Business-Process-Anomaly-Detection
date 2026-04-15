@@ -4,7 +4,6 @@ from pm4py.objects.conversion.log import converter as log_converter
 from pm4py.algo.discovery.dfg import algorithm as dfg_discovery
 import networkx as nx
 import matplotlib.pyplot as plt
-from collections import Counter
 import numpy as np
 
 
@@ -20,7 +19,9 @@ def log_json_to_df(data: list) -> pd.DataFrame:
                 "start_timestamp": pd.to_datetime(event["timestamp_start"]),
                 "end_timestamp": pd.to_datetime(event["timestamp_end"]),
                 "resource": event["resource"],
-                "is_anomaly": is_anomaly
+                "is_anomaly": is_anomaly,
+                "subtype": case.get("subtype", "normal"),
+                "anomaly_type": case.get("anomaly_type", "normal")
             })
 
     df = pd.DataFrame(rows)
@@ -32,7 +33,7 @@ def log_json_to_df(data: list) -> pd.DataFrame:
     df["end_timestamp"] = pd.to_datetime(df["end_timestamp"])
     df["is_anomaly"] = df["is_anomaly"].astype(int)
 
-    df = df.rename(columns = {
+    df = df.rename(columns={
         'case_id': 'case:concept:name',
         'start_timestamp': 'time:timestamp',
         'activity': 'concept:name'
@@ -40,11 +41,13 @@ def log_json_to_df(data: list) -> pd.DataFrame:
 
     return df
 
+
 def filter_normal_cases(df: pd.DataFrame) -> pd.DataFrame:
     # κρατάμε μόνο cases με is_anomaly = 0
     normal_cases = df[df["is_anomaly"] == 0]["case:concept:name"].unique()
     df_normal = df[df["case:concept:name"].isin(normal_cases)]
     return df_normal
+
 
 def draw_dfg(dfg: dict) -> None:
     G = nx.DiGraph()
@@ -91,14 +94,14 @@ def draw_dfg(dfg: dict) -> None:
 
 
 def extract_case_features(df, dfg):
-
     cases = []
 
     for case_id, group in df.groupby("case:concept:name"):
 
         group = group.sort_values("time:timestamp")
 
-        durations = (group["end_timestamp"] - group["time:timestamp"]).dt.total_seconds().values
+        durations = (group["end_timestamp"] - group["time:timestamp"]).dt.total_seconds()
+        durations = durations.fillna(0).values
         activities = group["concept:name"].values
         resources = group["resource"].values
 
@@ -119,7 +122,7 @@ def extract_case_features(df, dfg):
         timestamps_end = pd.to_datetime(group["end_timestamp"])
 
         for i in range(1, len(group)):
-            gap = (timestamps_start.iloc[i] - timestamps_end.iloc[i-1]).total_seconds() / 60
+            gap = (timestamps_start.iloc[i] - timestamps_end.iloc[i - 1]).total_seconds() / 60
             gaps.append(gap)
 
         avg_gap = np.mean(gaps) if gaps else 0
@@ -132,8 +135,7 @@ def extract_case_features(df, dfg):
 
         # --- Control flow ---
         has_loop = int(len(activities) != len(set(activities)))
-        expected_flow = ["A", "B", "C", "D", "E"]
-        has_skip = int(any(a not in activities for a in expected_flow))
+        has_skip = int("C" not in activities)
 
         # --- Simple deviation features ---
         expected_flow = ["A", "B", "C", "D", "E"]
@@ -143,11 +145,11 @@ def extract_case_features(df, dfg):
 
         # Wrong order (very simple metric)
         wrong_order = 0
-        for i in range(len(activities)-1):
-            if (activities[i], activities[i+1]) not in dfg:
+        for i in range(len(activities) - 1):
+            if (activities[i], activities[i + 1]) not in dfg:
                 wrong_order += 1
 
-        wrong_order_ratio = wrong_order / (len(activities)-1) if len(activities) > 1 else 0
+        wrong_order_ratio = wrong_order / (len(activities) - 1) if len(activities) > 1 else 0
 
         # --- Noise injection (break duplicates) ---
         noise = np.random.normal(0, 0.01)
@@ -185,10 +187,14 @@ def extract_case_features(df, dfg):
             "wrong_order_ratio": wrong_order_ratio,
 
             # label
-            "is_anomaly": group["is_anomaly"].iloc[0]
+            "is_anomaly": group["is_anomaly"].iloc[0],
+
+            # anomaly subtype
+            "subtype": group["subtype"].iloc[0] if "subtype" in group.columns else "normal"
         })
 
     return pd.DataFrame(cases)
+
 
 def prune_dfg(dfg: dict, min_ratio: float = 0.01) -> dict:
     """
@@ -208,14 +214,17 @@ def prune_dfg(dfg: dict, min_ratio: float = 0.01) -> dict:
 
     return pruned_dfg
 
-def encode_case_features(features_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
-    X = features_df.drop(columns=["case_id", "is_anomaly"])
-    y = features_df["is_anomaly"]
 
-    return X, y
+def encode_case_features(features_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    X = features_df.drop(columns=["case_id", "is_anomaly", "subtype"])
+    y = features_df["is_anomaly"]
+    subtypes = features_df["subtype"]
+
+    return X, y, subtypes
+
 
 def mine_process_model() -> tuple[pd.DataFrame, dict]:
-    with open("bpm/data/json/baseline_event_log.json", "r") as f:
+    with open(f"bpm/data/json/baseline_event_log.json", "r") as f:
         data = json.load(f)
 
     df = log_json_to_df(data)

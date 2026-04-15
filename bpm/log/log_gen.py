@@ -31,10 +31,10 @@ RESOURCE_MAP = {
 # Process flows
 # -------------------
 
-DOMINANT_FLOW = ["A","B","C","D","E"]
-LOOP_C_FLOW = ["A","B","C","C","D","E"]
-SKIP_C_FLOW = ["A","B","D","E"]
-G_FLOW = ["G","A","B","C","D","E"]
+DOMINANT_FLOW = ["A", "B", "C", "D", "E"]
+LOOP_C_FLOW = ["A", "B", "C", "C", "D", "E"]
+SKIP_C_FLOW = ["A", "B", "D", "E"]
+G_FLOW = ["G", "A", "B", "C", "D", "E"]
 
 # -------------------
 # Semantic priority rules
@@ -56,27 +56,28 @@ PRIORITY_RULES = {
 }
 
 ANOMALIES = [
-        ("structural_wrong_order",10),
-        ("structural_missing_start",10),
-        ("structural_double_end",10),
-        ("structural_missing_and_wrong",10),
+    ("structural_wrong_order", 10),
+    ("structural_missing_start", 10),
+    ("structural_double_end", 10),
+    ("structural_missing_and_wrong", 10),
 
-        ("temporal_long_duration",10),
-        ("temporal_short_duration",10),
-        ("temporal_negative",8),
-        ("temporal_gap",8),
+    ("temporal_long_duration", 10),
+    ("temporal_short_duration", 10),
+    ("temporal_negative", 8),
+    ("temporal_gap", 8),
 
-        ("contextual_wrong_resource",8),
-        ("contextual_out_of_range",8),
-        ("contextual_priority_duration",8),
-    ]
+    ("contextual_wrong_resource", 8),
+    ("contextual_out_of_range", 8),
+    ("contextual_priority_duration", 8),
+]
+
 
 # -------------------
 # Event creation
 # -------------------
 
-def create_event(activity, start_time):
 
+def create_event(activity, start_time):
     duration = rnd.randint(*ACTIVITY_DURATION[activity])
     end_time = start_time + timedelta(minutes=duration)
 
@@ -96,10 +97,9 @@ def create_event(activity, start_time):
 # -------------------
 
 def generate_case(case_id, flow):
-
     events = []
 
-    current_time = datetime(2026,1,1,8,0,0) + timedelta(
+    current_time = datetime(2026, 1, 1, 8, 0, 0) + timedelta(
         minutes=rnd.randint(0, 5000)
     )
 
@@ -111,12 +111,11 @@ def generate_case(case_id, flow):
     amount = rnd.randint(*PRIORITY_RULES[priority]["amount"])
 
     for activity in flow:
-
         event, end_time = create_event(activity, current_time)
 
         events.append(event)
 
-        gap = rnd.randint(1,5)
+        gap = rnd.randint(1, 5)
         current_time = end_time + timedelta(minutes=gap)
 
     case_start = datetime.fromisoformat(events[0]["timestamp_start"])
@@ -135,7 +134,6 @@ def generate_case(case_id, flow):
         new_events = []
 
         for event in events:
-
             scaled_duration = max(1, int(event["duration"] * scale_factor))
             end_time = current_time + timedelta(minutes=scaled_duration)
 
@@ -169,7 +167,6 @@ def add_cases(n, flow, subtype, case_counter):
     cases = []
 
     for _ in range(n):
-
         case = generate_case(f"C{case_counter:04d}", flow)
         case["subtype"] = subtype
 
