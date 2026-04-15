@@ -163,7 +163,7 @@ def generate_case(case_id, flow):
     return case
 
 
-def add_cases(n, flow, subtype, case_counter):
+def add_cases(n, flow, subtype, case_counter) -> (list[dict[str, int | bool | list]], int):
     cases = []
 
     for _ in range(n):
@@ -177,7 +177,7 @@ def add_cases(n, flow, subtype, case_counter):
     return cases, case_counter
 
 
-def build_log():
+def build_log() -> None:
     cases = []
     case_counter = 1
 

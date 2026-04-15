@@ -38,6 +38,7 @@ X_full = scaler.fit_transform(X)
 # 🔵 1. LOF (score-based)
 # =========================
 lof_best_f1 = 0
+lof_best = (0, 0, [])
 
 for n_neighbors in [20, 30, 50, 100]:
     lof = LOFDetector(n_neighbors=n_neighbors)
@@ -64,6 +65,7 @@ print(f"Best LOF: k={lof_best[0]}, perc={lof_best[1]}, F1={lof_best_f1:.2f}")
 # 🟢 2. Isolation Forest (score-based)
 # =========================
 iso_best_f1 = 0
+iso_best = (0, 0, [])
 
 for contamination in [0.05, 0.1, 0.15]:
     iso = IsolationForestDetector(n_estimators=100, contamination=contamination)
@@ -86,9 +88,10 @@ print(f"Best IF: cont={iso_best[0]}, perc={iso_best[1]}, F1={iso_best_f1:.2f}")
 
 
 # =========================
-# 🟠 3. DBSCAN (transductive)
+# 🟠 3. DBSCAN
 # =========================
 dbscan_best_f1 = 0
+dbscan_best = (0, 0, [])
 
 for eps in [1.0, 1.5, 2.0, 2.5]:
     dbscan = DBSCANDetector(eps=eps)

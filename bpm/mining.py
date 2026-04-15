@@ -93,7 +93,7 @@ def draw_dfg(dfg: dict) -> None:
     plt.show()
 
 
-def extract_case_features(df, dfg):
+def extract_case_features(df, dfg) -> pd.DataFrame:
     cases = []
 
     for case_id, group in df.groupby("case:concept:name"):
