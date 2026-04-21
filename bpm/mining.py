@@ -52,7 +52,7 @@ def filter_normal_cases(df: pd.DataFrame) -> pd.DataFrame:
 def draw_dfg(dfg: dict) -> None:
     G = nx.DiGraph()
     for (src, tgt), cnt in dfg.items():
-        G.add_edge(src, tgt, weight=cnt)
+        G.add_edge(src, tgt, weight=round(cnt/9200, 3))
 
     pos = nx.circular_layout(G)
 

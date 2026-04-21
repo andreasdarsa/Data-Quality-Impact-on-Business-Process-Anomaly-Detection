@@ -4,7 +4,7 @@ from colorama import Fore, Style
 
 def evaluate(y_true, y_pred, name="Model"):
     print(f"\n{name}")
-    print(f"{Fore.GREEN}{Style.BRIGHT}True anomaly rate: {sum(y_true) / len(y_true)}{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}{Style.BRIGHT}True anomaly rate: {(sum(y_true) / len(y_true)):.2f}{Style.RESET_ALL}")
 
     print(f"{Fore.YELLOW}{Style.BRIGHT}Predicted anomalies: {sum(y_pred)} out of {len(y_pred)} cases{Style.RESET_ALL}")
 

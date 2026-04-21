@@ -65,6 +65,7 @@
 1. LOF (Local Outlier Factor)
 2. Isolation Forest
 3. DBSCAN (clustering-based)
+4. K-Nearest Neighbors
 
 Όλες οι μέθοδοι εφαρμόζονται σε:
 - Baseline (κανονικό dataset χωρίς προβλήματα δεδομένων)
