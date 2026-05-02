@@ -28,7 +28,6 @@
 - Precision
 - Recall
 - F1-score
-- ROC-AUC / PR-AUC
 - Confusion Matrix
 
 ---
