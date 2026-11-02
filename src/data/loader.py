@@ -10,6 +10,21 @@ def load_json(path: str | Path) -> Any:
         return json.load(f)
 
 
+def load_binet_log(path: str | Path) -> dict:
+    data = load_json(path)
+
+    if not isinstance(data, dict):
+        raise ValueError("Expected a BINet event log to be a JSON object.")
+
+    if "cases" not in data:
+        raise ValueError("Invalid BINet event log: missing 'cases' key.")
+
+    if not isinstance(data["cases"], list):
+        raise ValueError("Invalid BINet event log: 'cases' must be a list.")
+
+    return data
+
+
 def save_json(data: Any, path: str | Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
