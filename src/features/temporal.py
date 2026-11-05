@@ -7,11 +7,12 @@ def extract_temporal_features(case: dict) -> dict:
     events = case["events"]
 
     # Durations are expressed in seconds.
+    # Missing durations are excluded.
     durations = [
         float(event["duration"])
         for event in events
         if event.get("duration") is not None
-        and event["duration"] > 0
+        and event["duration"] >= 0
     ]
 
     # Calculate gaps only when both timestamps are available.

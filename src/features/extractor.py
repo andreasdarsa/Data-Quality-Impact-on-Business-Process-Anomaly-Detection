@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from .basic import extract_basic_features
@@ -26,5 +27,11 @@ def extract_features(logs: list[dict], dfg: dict):
     X = pd.DataFrame(rows)
     y = pd.Series(labels, name="is_anomaly")
     subtype = pd.Series(subtypes, name="subtype")
+
+    if not all(pd.api.types.is_numeric_dtype(dtype) for dtype in X.dtypes):
+        raise ValueError("Feature matrix contains non-numeric columns.")
+
+    if not np.isfinite(X.to_numpy(dtype=float)).all():
+        raise ValueError("Feature matrix contains NaN or infinite values.")
 
     return X, y, subtype

@@ -1,8 +1,12 @@
+from src.features.extractor import extract_features
 from src.data.adapters.binet_adapter import load_and_convert_binet_log, load_binet_log
 from src.data.schema import validate_logs
 from collections import Counter, defaultdict
 from src.features.temporal import extract_temporal_features
 from datetime import datetime
+from src.features.resource import extract_resource_features
+from src.features.control_flow import extract_control_flow_features
+from src.process_mining.dfg import build_dfg, prune_dfg
 
 logs = load_and_convert_binet_log("data/bpic12-0.3-1.json")
 validate_logs(logs)
@@ -124,6 +128,9 @@ for event in case["events"]:
 
 converted_logs = load_and_convert_binet_log("data/bpic12-0.3-1.json")
 
+dfg = build_dfg(converted_logs)
+dfg = prune_dfg(dfg, min_freq=2)
+
 converted_events = [
     event
     for case in converted_logs
@@ -183,6 +190,7 @@ total_events = 0
 events_with_end = 0
 positive_durations = 0
 zero_durations = 0
+missing_durations = 0
 negative_durations = 0
 
 for case in converted_logs:
@@ -194,7 +202,9 @@ for case in converted_logs:
 
         duration = event["duration"]
 
-        if duration > 0:
+        if duration is None:
+            missing_durations += 1
+        elif duration > 0:
             positive_durations += 1
         elif duration == 0:
             zero_durations += 1
@@ -206,6 +216,7 @@ print(f"Total events: {total_events}")
 print(f"Events with end timestamp: {events_with_end}")
 print(f"Events with positive duration: {positive_durations}")
 print(f"Events with zero duration: {zero_durations}")
+print(f"Events with missing duration: {missing_durations}")
 print(f"Events with negative duration: {negative_durations}")
 
 # Test temporal feature extraction on converted logs
@@ -239,3 +250,83 @@ if failed == 0:
 else:
     print("Temporal feature extraction test FAILED.")
 
+print("\n--- Resource feature extraction test ---")
+
+successful = 0
+failed = 0
+
+for case in converted_logs[:100]:
+    try:
+        features = extract_resource_features(case)
+
+        assert all(
+            isinstance(value, (int, float))
+            for value in features.values()
+        )
+
+        successful += 1
+
+    except Exception as exc:
+        failed += 1
+        print(f"FAILED case {case['case_id']}: {exc}")
+
+print(f"Cases tested: 100")
+print(f"Successful: {successful}")
+print(f"Failed: {failed}")
+
+print("\n--- Control-flow feature extraction test ---")
+
+successful = 0
+failed = 0
+
+for case in converted_logs[:100]:
+    try:
+        features = extract_control_flow_features(case, dfg)
+
+        assert all(
+            isinstance(value, (int, float))
+            for value in features.values()
+        )
+
+        successful += 1
+
+    except Exception as exc:
+        failed += 1
+        print(f"FAILED case {case['case_id']}: {exc}")
+
+print(f"Cases tested: {100}")
+print(f"Successful: {successful}")
+print(f"Failed: {failed}")
+
+if failed == 0:
+    print("Control-flow feature extraction test PASSED.")
+else:
+    print("Control-flow feature extraction test FAILED.")
+
+print("\n--- Full feature extraction test ---")
+
+dfg = prune_dfg(build_dfg(converted_logs), min_freq=2)
+
+X, y, subtype = extract_features(converted_logs, dfg)
+
+print(f"Feature matrix shape: {X.shape}")
+print(f"Labels shape: {y.shape}")
+print(f"Subtypes shape: {subtype.shape}")
+
+print("\n--- Feature columns ---")
+for column in X.columns:
+    print(f"{column}: {X[column].dtype}")
+
+print("\n--- Missing values ---")
+print(X.isna().sum())
+
+print("\n--- Label distribution ---")
+print(y.value_counts())
+
+assert len(X) == len(converted_logs)
+assert len(y) == len(converted_logs)
+assert len(subtype) == len(converted_logs)
+assert X.select_dtypes(exclude="number").empty
+assert X.notna().all().all()
+
+print("\nFull feature extraction test PASSED.")
