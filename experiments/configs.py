@@ -47,3 +47,16 @@ def get_degradation_configs(seed: int) -> list[DegradationConfig]:
         DegradationConfig("timeliness", 0.2, variant="event_delay", seed=seed),
         DegradationConfig("timeliness", 0.3, variant="event_delay", seed=seed),
     ]
+
+BINET_DATA_FILENAME = "bpic12-0.3-1.json"
+
+BINET_TRAIN_FILENAME_TEMPLATE = "binet_train_seed_{seed}.json"
+BINET_TEST_FILENAME_TEMPLATE = "binet_test_seed_{seed}.json"
+
+
+def get_binet_train_filename(seed: int) -> str:
+    return BINET_TRAIN_FILENAME_TEMPLATE.format(seed=seed)
+
+
+def get_binet_test_filename(seed: int) -> str:
+    return BINET_TEST_FILENAME_TEMPLATE.format(seed=seed)
