@@ -13,7 +13,10 @@ def inject_accuracy_noise(
     corrupted = copy.deepcopy(logs)
 
     n_corrupted = int(len(corrupted) * level)
-    selected_indices = rng.sample(range(len(corrupted)), n_corrupted)
+    selected_indices = rng.sample(
+        range(len(corrupted)),
+        n_corrupted
+    )
 
     for idx in selected_indices:
         case = corrupted[idx]
@@ -32,24 +35,75 @@ def inject_accuracy_noise(
     return corrupted
 
 
-def _corrupt_durations(case: dict, level: float, rng: random.Random) -> None:
+def _corrupt_durations(
+    case: dict,
+    level: float,
+    rng: random.Random
+) -> None:
     for event in case["events"]:
+        duration = event.get("duration")
+
+        if duration is None:
+            continue
+
         factor = 1 + rng.uniform(-level, level)
-        event["duration"] = max(1, round(event["duration"] * factor))
+
+        event["duration"] = max(
+            0,
+            round(float(duration) * factor)
+        )
 
 
-def _shift_timestamps(case: dict, level: float, rng: random.Random) -> None:
+def _shift_timestamps(
+    case: dict,
+    level: float,
+    rng: random.Random
+) -> None:
     max_shift_minutes = max(1, int(level * 30))
 
     for event in case["events"]:
-        shift = rng.randint(-max_shift_minutes, max_shift_minutes)
+        shift = rng.randint(
+            -max_shift_minutes,
+            max_shift_minutes
+        )
 
-        start = datetime.fromisoformat(event["timestamp_start"])
-        end = datetime.fromisoformat(event["timestamp_end"])
+        for field in ("timestamp_start", "timestamp_end"):
+            timestamp = event.get(field)
 
-        event["timestamp_start"] = (start + timedelta(minutes=shift)).isoformat()
-        event["timestamp_end"] = (end + timedelta(minutes=shift)).isoformat()
+            if timestamp is None:
+                continue
+
+            try:
+                parsed = datetime.fromisoformat(timestamp)
+            except (TypeError, ValueError):
+                continue
+
+            event[field] = (
+                parsed + timedelta(minutes=shift)
+            ).isoformat()
 
 
 def _recompute_case_duration(case: dict) -> None:
-    case["total_duration"] = sum(event["duration"] for event in case["events"])
+    completion_timestamps = []
+
+    for event in case["events"]:
+        timestamp = event.get("timestamp_end")
+
+        if timestamp is None:
+            continue
+
+        try:
+            completion_timestamps.append(
+                datetime.fromisoformat(timestamp)
+            )
+        except (TypeError, ValueError):
+            continue
+
+    if len(completion_timestamps) >= 2:
+        case["total_duration"] = (
+            max(completion_timestamps)
+            - min(completion_timestamps)
+        ).total_seconds()
+
+    elif len(completion_timestamps) == 1:
+        case["total_duration"] = 0.0

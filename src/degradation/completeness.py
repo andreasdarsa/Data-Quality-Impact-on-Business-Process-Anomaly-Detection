@@ -1,5 +1,6 @@
 import copy
 import random
+from datetime import datetime
 
 
 def inject_missing_events(
@@ -13,7 +14,10 @@ def inject_missing_events(
     corrupted = copy.deepcopy(logs)
 
     n_corrupted = int(len(corrupted) * level)
-    selected_indices = rng.sample(range(len(corrupted)), n_corrupted)
+    selected_indices = rng.sample(
+        range(len(corrupted)),
+        n_corrupted
+    )
 
     for idx in selected_indices:
         case = corrupted[idx]
@@ -22,7 +26,12 @@ def inject_missing_events(
         if len(events) <= min_events:
             continue
 
-        remove_idx = _select_event_to_remove(events, variant, rng)
+        remove_idx = _select_event_to_remove(
+            events,
+            variant,
+            rng
+        )
+
         events.pop(remove_idx)
 
         _recompute_case_duration(case)
@@ -39,17 +48,44 @@ def _select_event_to_remove(
     rng: random.Random
 ) -> int:
     if variant == "targeted":
-        target_activities = {"C", "D"}
-        candidates = [
-            i for i, event in enumerate(events)
-            if event["activity"] in target_activities
-        ]
+        activities = list({
+            event["activity"] for event in events
+        })
 
-        if candidates:
+        if activities:
+            selected_activity = rng.choice(activities)
+
+            candidates = [
+                i for i, event in enumerate(events)
+                if event["activity"] == selected_activity
+            ]
+
             return rng.choice(candidates)
 
     return rng.randrange(len(events))
 
 
 def _recompute_case_duration(case: dict) -> None:
-    case["total_duration"] = sum(event["duration"] for event in case["events"])
+    completion_timestamps = []
+
+    for event in case["events"]:
+        timestamp = event.get("timestamp_end")
+
+        if timestamp is None:
+            continue
+
+        try:
+            completion_timestamps.append(
+                datetime.fromisoformat(timestamp)
+            )
+        except (TypeError, ValueError):
+            continue
+
+    if len(completion_timestamps) >= 2:
+        case["total_duration"] = (
+            max(completion_timestamps)
+            - min(completion_timestamps)
+        ).total_seconds()
+
+    elif len(completion_timestamps) == 1:
+        case["total_duration"] = 0.0
