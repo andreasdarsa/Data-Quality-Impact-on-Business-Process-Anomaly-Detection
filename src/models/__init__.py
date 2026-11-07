@@ -1,1 +1,1 @@
-from .runner import run_all_detectors
+from .runner import fit_all_detectors, evaluate_all_detectors
