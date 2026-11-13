@@ -55,51 +55,77 @@ def run_single_degradation_experiment(
     config,
 ) -> dict:
 
-    # Apply degradation to a fresh copy of the original test set.
-    degraded_test_logs = apply_degradation(test_logs, config)
+    # 1. Apply degradation to the original test set.
+    degraded_test_logs = apply_degradation(
+        test_logs,
+        config
+    )
+
     validate_logs(degraded_test_logs)
 
-    output_name = build_output_name(config, split_seed)
+    # 2. Build unique output paths.
+    output_name = build_output_name(
+        config,
+        split_seed
+    )
 
-    degraded_log_path = DEGRADED_DATA_DIR / f"{output_name}.json"
-    save_logs(degraded_test_logs, degraded_log_path)
+    degraded_log_path = (
+        DEGRADED_DATA_DIR / f"{output_name}.json"
+    )
 
-    # Extract features using the same training DFG.
+    result_path = (
+        DEGRADATION_RESULTS_DIR / f"{output_name}.json"
+    )
+
+    # 3. Save degraded event log.
+    save_logs(
+        degraded_test_logs,
+        degraded_log_path
+    )
+
+    # 4. Extract test features using the training DFG.
     X_test, y_test, test_subtype = extract_features(
         degraded_test_logs,
         dfg
     )
 
-    # Evaluate using the already fitted detectors.
-    # No retraining or scaler refitting takes place here.
+    # 5. Evaluate using the already fitted detectors.
     detector_outputs = evaluate_all_detectors(
         fitted_models=fitted_models,
         X_test=X_test,
     )
 
+    # 6. Calculate overall metrics.
     overall_metrics = evaluate_detector_results(
         y_true=y_test,
         detector_results=detector_outputs,
     )
 
+    # 7. Calculate metrics per anomaly subtype.
     per_subtype_metrics = evaluate_per_subtype(
         y_true=y_test,
         subtype=test_subtype,
         detector_results=detector_outputs,
     )
 
+    # 8. Build result with both split and degradation seeds.
     result = build_experiment_result(
-        experiment_name="degradation",
+        experiment_name="binet_degradation",
         config=config_to_dict(config),
         overall_metrics=overall_metrics,
         per_subtype_metrics=per_subtype_metrics,
+        split_seed=split_seed,
     )
 
-    result_path = DEGRADATION_RESULTS_DIR / f"{output_name}.json"
-    save_results(result, result_path)
+    # 9. Save experiment results.
+    save_results(
+        result,
+        result_path
+    )
 
     print(
-        f"[split_seed={split_seed}] "
+        f"[split={split_seed}] "
+        f"[degradation_seed={config.seed}] "
         f"Completed: {output_name}"
     )
 
@@ -107,6 +133,25 @@ def run_single_degradation_experiment(
 
 
 def main() -> None:
+
+    # Ensure output directories exist.
+    DEGRADED_DATA_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    DEGRADATION_RESULTS_DIR.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    total_experiments = (
+        len(SPLIT_SEEDS)
+        * len(DEGRADATION_SEEDS)
+        * 12
+    )
+
+    completed_experiments = 0
 
     for split_seed in SPLIT_SEEDS:
 
@@ -134,16 +179,21 @@ def main() -> None:
             if not case["is_anomaly"]
         ]
 
+        if not normal_train_logs:
+            raise ValueError(
+                f"No normal training cases found for split seed {split_seed}."
+            )
+
         dfg = build_dfg(normal_train_logs)
         dfg = prune_dfg(dfg, min_freq=2)
 
-        # 3. Extract training features from ALL training cases.
-        X_train, y_train, _ = extract_features(
+        # 3. Extract features from ALL training cases.
+        X_train, _, _ = extract_features(
             train_logs,
             dfg
         )
 
-        # 4. Fit all detectors exactly once for this split.
+        # 4. Fit all detectors exactly once per split.
         fitted_models = fit_all_detectors(
             X_train=X_train,
             threshold_percentile=THRESHOLD_PERCENTILE,
@@ -167,6 +217,7 @@ def main() -> None:
             )
 
             for config in configs:
+
                 run_single_degradation_experiment(
                     test_logs=test_logs,
                     dfg=dfg,
@@ -175,7 +226,21 @@ def main() -> None:
                     config=config,
                 )
 
-    print("\nAll degradation experiments completed.")
+                completed_experiments += 1
+
+                print(
+                    f"Progress: {completed_experiments}/"
+                    f"{total_experiments}"
+                )
+
+    print(
+        "\nAll degradation experiments completed."
+    )
+
+    print(
+        f"Total completed experiments: "
+        f"{completed_experiments}"
+    )
 
 
 if __name__ == "__main__":
