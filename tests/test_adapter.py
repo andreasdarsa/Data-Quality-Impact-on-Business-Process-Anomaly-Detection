@@ -8,7 +8,7 @@ from src.features.resource import extract_resource_features
 from src.features.control_flow import extract_control_flow_features
 from src.process_mining.dfg import build_dfg, prune_dfg
 
-logs = load_and_convert_binet_log("data/bpic12-0.3-1.json")
+logs = load_and_convert_binet_log("data/raw/bpic12-0.3-1.json")
 validate_logs(logs)
 
 print(f"Cases: {len(logs)}")
@@ -49,7 +49,7 @@ print(f"Events with start timestamp: {events_with_start}")
 print(f"Events with end timestamp: {events_with_end}")
 print(f"Events with zero duration: {zero_duration_events}")
 
-raw_data = load_binet_log("data/bpic12-0.3-1.json")
+raw_data = load_binet_log("data/raw/bpic12-0.3-1.json")
 
 transition_counts = Counter()
 examples = {}
@@ -126,7 +126,7 @@ for event in case["events"]:
         "timestamp": event.get("timestamp"),
     })
 
-converted_logs = load_and_convert_binet_log("data/bpic12-0.3-1.json")
+converted_logs = load_and_convert_binet_log("data/raw/bpic12-0.3-1.json")
 
 dfg = build_dfg(converted_logs)
 dfg = prune_dfg(dfg, min_freq=2)
