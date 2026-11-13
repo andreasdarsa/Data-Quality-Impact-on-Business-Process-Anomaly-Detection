@@ -15,26 +15,33 @@ def extract_temporal_features(case: dict) -> dict:
         and event["duration"] >= 0
     ]
 
-    # Calculate gaps only when both timestamps are available.
+    # Calculate inter-event gaps.
+    # BPIC12: previous completion -> current start.
+    # BPIC13: previous timestamp -> current timestamp.
     gaps = []
 
     for prev, curr in zip(events, events[1:]):
-        prev_end = prev.get("timestamp_end")
-        curr_start = curr.get("timestamp_start")
+        prev_timestamp = prev.get("timestamp_end")
 
-        if not prev_end or not curr_start:
+        curr_timestamp = (
+            curr.get("timestamp_start")
+            or curr.get("timestamp_end")
+        )
+
+        if not prev_timestamp or not curr_timestamp:
             continue
 
         try:
-            prev_end_dt = datetime.fromisoformat(prev_end)
-            curr_start_dt = datetime.fromisoformat(curr_start)
+            prev_dt = datetime.fromisoformat(prev_timestamp)
+            curr_dt = datetime.fromisoformat(curr_timestamp)
         except (TypeError, ValueError):
             continue
 
         gap_minutes = (
-            curr_start_dt - prev_end_dt
+            curr_dt - prev_dt
         ).total_seconds() / 60
 
+        # Preserve negative gaps as potential anomaly signals.
         gaps.append(gap_minutes)
 
     return {
