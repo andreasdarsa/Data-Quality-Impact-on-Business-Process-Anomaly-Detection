@@ -80,75 +80,25 @@ def _shift_timestamps(
 
     max_shift_minutes = max(1, int(level * 30))
 
-    events = case["events"]
+    for event in case["events"]:
 
-    completion_times = [
-        _parse_timestamp(event.get("timestamp_end"))
-        for event in events
-    ]
+        # BPIC13 uses point timestamps and preserves
+        # the original event order.
+        timestamp = _parse_timestamp(
+            event.get("timestamp_end")
+        )
 
-    valid_indices = [
-        i for i, timestamp in enumerate(completion_times)
-        if timestamp is not None
-    ]
+        if timestamp is None:
+            continue
 
-    previous_shifted_timestamp = None
-
-    for position, event_index in enumerate(valid_indices):
-
-        current_timestamp = completion_times[event_index]
-
-        min_shift = -max_shift_minutes
-        max_shift = max_shift_minutes
-
-        # Ensure that the current event does not precede
-        # the previously shifted event.
-        if previous_shifted_timestamp is not None:
-
-            difference = (
-                previous_shifted_timestamp - current_timestamp
-            ).total_seconds() / 60
-
-            min_shift = max(
-                min_shift,
-                math.ceil(difference)
-            )
-
-        # Reserve enough space for the next event to receive
-        # its maximum possible negative shift.
-        if position < len(valid_indices) - 1:
-
-            next_timestamp = completion_times[
-                valid_indices[position + 1]
-            ]
-
-            difference = (
-                next_timestamp - current_timestamp
-            ).total_seconds() / 60
-
-            max_shift = min(
-                max_shift,
-                math.floor(difference) - max_shift_minutes
-            )
-
-        if min_shift > max_shift:
-            shift_minutes = 0
-        else:
-            shift_minutes = rng.randint(
-                min_shift,
-                max_shift
-            )
+        shift_minutes = rng.randint(
+            -max_shift_minutes,
+            max_shift_minutes
+        )
 
         shift = timedelta(minutes=shift_minutes)
 
-        _shift_event_timestamps(
-            events[event_index],
-            shift
-        )
-
-        previous_shifted_timestamp = (
-            current_timestamp + shift
-        )
+        _shift_event_timestamps(event, shift)
 
 
 def _shift_event_timestamps(

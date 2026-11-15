@@ -12,7 +12,7 @@ from src.evaluation import (
 from src.utils.paths import PROCESSED_DATA_DIR, BASELINE_RESULTS_DIR
 
 from experiments.configs import (
-    SEEDS,
+    SPLIT_SEEDS,
     THRESHOLD_PERCENTILE,
     get_binet_train_filename,
     get_binet_test_filename,
@@ -80,7 +80,7 @@ def run_binet_baseline_for_seed(seed: int) -> dict:
             "dfg_training_cases": "normal_only",
             "min_dfg_frequency": 2,
             "threshold_percentile": THRESHOLD_PERCENTILE,
-            "detector_training_data": "clean_training_set",
+            "detector_training_data": "normal_only",
         },
         overall_metrics=overall_metrics,
         per_subtype_metrics=per_subtype_metrics,
@@ -89,7 +89,7 @@ def run_binet_baseline_for_seed(seed: int) -> dict:
     # Use a new filename to preserve previous baseline results.
     output_path = (
         BASELINE_RESULTS_DIR /
-        f"binet_clean_metrics_seed_{seed}.json"
+        f"binet_normal_only_metrics_seed_{seed}.json"
     )
 
     save_results(result, output_path)
@@ -104,7 +104,7 @@ def run_binet_baseline_for_seed(seed: int) -> dict:
 
 
 def main() -> None:
-    for seed in SEEDS:
+    for seed in SPLIT_SEEDS:
         run_binet_baseline_for_seed(seed)
 
 
