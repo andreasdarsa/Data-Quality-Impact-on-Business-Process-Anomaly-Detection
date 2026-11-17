@@ -49,20 +49,45 @@ def analyze_predictions(
     y_subtypes,
     clean_pred,
     degraded_pred,
+    affected_mask,
 ):
-    """Compare clean and degraded predictions."""
+    """Compare clean and degraded predictions, including FP attribution."""
 
     y_true = np.asarray(y_true, dtype=int)
     clean_pred = np.asarray(clean_pred, dtype=int)
     degraded_pred = np.asarray(degraded_pred, dtype=int)
+    affected_mask = np.asarray(affected_mask, dtype=bool)
 
     if not (
-        len(y_true) == len(clean_pred) == len(degraded_pred)
+        len(y_true)
+        == len(clean_pred)
+        == len(degraded_pred)
+        == len(affected_mask)
     ):
-        raise ValueError("Prediction and label lengths do not match.")
+        raise ValueError(
+            "Prediction, label, and affected-mask lengths do not match."
+        )
 
     changed = clean_pred != degraded_pred
     total = len(y_true)
+
+    normal_mask = y_true == 0
+    degraded_positive = degraded_pred == 1
+    newly_positive = (clean_pred == 0) & (degraded_pred == 1)
+
+    false_positive_analysis = {
+        "affected_cases": int(affected_mask.sum()),
+        "unaffected_cases": int((~affected_mask).sum()),
+        "fp_aff": int(np.sum(
+            normal_mask & affected_mask & degraded_positive
+        )),
+        "fp_unaff": int(np.sum(
+            normal_mask & ~affected_mask & degraded_positive
+        )),
+        "fp_new_aff": int(np.sum(
+            normal_mask & affected_mask & newly_positive
+        )),
+    }
 
     per_subtype = {}
 
@@ -101,8 +126,10 @@ def analyze_predictions(
         ),
         "clean": confusion_counts(y_true, clean_pred),
         "degraded": confusion_counts(y_true, degraded_pred),
+        "false_positive_analysis": false_positive_analysis,
         "per_subtype": per_subtype,
     }
+
 
 
 def main():
@@ -245,17 +272,15 @@ def main():
 
                 for detector_name in clean_outputs:
 
-                    detector_analysis[detector_name] = (
-                        analyze_predictions(
-                            y_true=y_true,
-                            y_subtypes=subtypes,
-                            clean_pred=clean_outputs[
-                                detector_name
-                            ]["y_pred"],
-                            degraded_pred=degraded_outputs[
-                                detector_name
-                            ]["y_pred"],
-                        )
+                    detector_analysis[detector_name] = analyze_predictions(
+                        y_true=y_true,
+                        y_subtypes=subtypes,
+                        clean_pred=clean_outputs[detector_name]["y_pred"],
+                        degraded_pred=degraded_outputs[detector_name]["y_pred"],
+                        affected_mask=[
+                            case.get("quality_issue") == config.dimension
+                            for case in degraded_logs
+                        ],
                     )
 
                 result = {
